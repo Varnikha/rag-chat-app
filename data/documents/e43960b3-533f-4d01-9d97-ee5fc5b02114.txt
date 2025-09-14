@@ -1,0 +1,11 @@
+
+        This is the first paragraph of our test document. It contains multiple sentences that will help us test the chunking functionality. Each sentence provides meaningful content for testing.
+        
+        This is the second paragraph. It discusses different aspects of document processing and text chunking. The system should be able to handle various types of content and create meaningful chunks.
+        
+        The third paragraph focuses on RAG systems. Retrieval Augmented Generation is a powerful technique that combines information retrieval with text generation. It allows AI systems to access external knowledge.
+        
+        Finally, the fourth paragraph concludes our test document. It ensures we have enough content to create multiple chunks with proper overlap. This helps test the chunking algorithm thoroughly.
+        
+        Additional content for testing includes technical terms like embeddings, vector databases, and similarity search. These concepts are crucial for RAG implementations.
+        
