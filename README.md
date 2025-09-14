@@ -77,7 +77,6 @@ curl -X POST "http://127.0.0.1:8000/api/chat/" \
 - **Auth:** JWT, bcrypt
 - **Docs:** Auto-generated OpenAPI/Swagger
 
-*Built according to RAGworks.ai challenge requirements*
 
 ## 📈 Key Metrics
 
@@ -100,8 +99,5 @@ curl -X POST "http://127.0.0.1:8000/api/chat/" \
 - **ChromaDB**: Efficient vector storage with local deployment
 - **JWT Authentication**: Industry-standard stateless auth implementation
 
-*Built to exceed challenge expectations while maintaining easy setup and deployment*
 
 ---
-
-*Submission for RAGworks.ai engineering challenge - demonstrating full-stack development, LLM integration, and RAG implementation.*
