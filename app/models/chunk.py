@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from .database import Base
+from app.database import Base
 
 
 class DocumentChunk(Base):
@@ -11,7 +11,7 @@ class DocumentChunk(Base):
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     chunk_index = Column(Integer, nullable=False)  # Order of chunk in document
     content = Column(Text, nullable=False)
-    chunk_size = Column(Integer, nullable=False)
+    chunk_size = Column(Integer , nullable=False)
     start_position = Column(Integer, nullable=False)
     end_position = Column(Integer, nullable=False)
     embedding_id = Column(String, nullable=True)  # For vector DB reference

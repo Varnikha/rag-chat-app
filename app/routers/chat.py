@@ -1,158 +1,120 @@
+# app/routers/chat.py - FIXED VERSION
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from typing import List
 
-from app.database import get_db
-from app.models.user import Document, Conversation, Message
-from app.services.rag_service import RAGService
-from app.services.llm_service import LLMService
+# Import from database.py (don't redefine models here)
+from app.database import get_db, User, ChatSession, ChatMessage
+from app.routers.auth import get_current_user
 
-router = APIRouter(tags=["chat"])
+router = APIRouter()
 
-class ChatRequest(BaseModel):
-    message: str
-    conversation_id: Optional[int] = None
+# Pydantic models for API
+class ChatMessageCreate(BaseModel):
+    content: str
 
-class ChatResponse(BaseModel):
-    response: str
-    conversation_id: int
-    message_id: int
-
-class ConversationResponse(BaseModel):
+class ChatMessageResponse(BaseModel):
     id: int
-    title: str
+    content: str
+    is_user_message: int
+    timestamp: str
+    
+    class Config:
+        from_attributes = True
+
+class ChatSessionResponse(BaseModel):
+    id: int
     created_at: str
-    message_count: int
+    messages: List[ChatMessageResponse] = []
+    
+    class Config:
+        from_attributes = True
 
-# Initialize services
-rag_service = RAGService()
-llm_service = LLMService()
+# Routes
+@router.get("/test")
+async def test_chat():
+    return {"message": "Chat router is working!", "status": "success"}
 
-@router.post("/send", response_model=ChatResponse)
-async def send_message(chat_request: ChatRequest, db: Session = Depends(get_db)):
-    """Send a chat message and get RAG-powered AI response"""
-    try:
-        # Step 1: Get or create conversation
-        conversation = None
-        if chat_request.conversation_id:
-            conversation = db.query(Conversation).filter(
-                Conversation.id == chat_request.conversation_id
-            ).first()
-        
-        if not conversation:
-            # Create new conversation
-            conversation = Conversation(
-                user_id=1,  # TODO: Get from JWT token
-                title=chat_request.message[:50] + "..." if len(chat_request.message) > 50 else chat_request.message,
-                created_at=datetime.utcnow()
-            )
-            db.add(conversation)
-            db.commit()
-            db.refresh(conversation)
+@router.post("/sessions", response_model=ChatSessionResponse)
+async def create_chat_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new chat session"""
+    session = ChatSession(user_id=current_user.id)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
 
-        # Step 2: Save user message to database
-        user_message = Message(
-            conversation_id=conversation.id,
-            role="user",
-            content=chat_request.message,
-            timestamp=datetime.utcnow()
-        )
-        db.add(user_message)
-        db.commit()
-        db.refresh(user_message)
+@router.get("/sessions", response_model=List[ChatSessionResponse])
+async def get_chat_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all chat sessions for current user"""
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == current_user.id).all()
+    return sessions
 
-        # Step 3: Get user's documents for RAG context
-        user_documents = db.query(Document).filter(
-            Document.user_id == 1,  # TODO: Get from JWT token
-            Document.processed == True
-        ).all()
+@router.post("/sessions/{session_id}/messages", response_model=ChatMessageResponse)
+async def send_message(
+    session_id: int,
+    message: ChatMessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a message in a chat session"""
+    # Verify session belongs to user
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    # Create user message
+    user_message = ChatMessage(
+        session_id=session_id,
+        content=message.content,
+        is_user_message=1
+    )
+    db.add(user_message)
+    db.commit()
+    db.refresh(user_message)
+    
+    # TODO: Add RAG processing here
+    # For now, just echo back
+    ai_response = f"I received your message: {message.content}"
+    
+    # Create AI response message
+    ai_message = ChatMessage(
+        session_id=session_id,
+        content=ai_response,
+        is_user_message=0
+    )
+    db.add(ai_message)
+    db.commit()
+    db.refresh(ai_message)
+    
+    return user_message
 
-        if not user_documents:
-            # No documents uploaded yet
-            ai_response = "I don't have any documents to reference. Please upload some documents first so I can help answer questions about them."
-        else:
-            # Step 4: Use RAG service to get relevant context
-            relevant_context = await rag_service.search_documents(
-                query=chat_request.message,
-                user_id=1  # TODO: Get from JWT token
-            )
-
-            # Step 5: Generate AI response using LLM service
-            ai_response = await llm_service.generate_response(
-                query=chat_request.message,
-                context=relevant_context
-            )
-
-        # Step 6: Save AI response to database
-        ai_message = Message(
-            conversation_id=conversation.id,
-            role="assistant", 
-            content=ai_response,
-            timestamp=datetime.utcnow()
-        )
-        db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
-
-        return {
-            "response": ai_response,
-            "conversation_id": conversation.id,
-            "message_id": ai_message.id
-        }
-
-    except Exception as e:
-        print(f"Chat error: {e}")  # For debugging
-        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
-
-@router.get("/conversations", response_model=List[ConversationResponse])
-async def get_conversations(db: Session = Depends(get_db)):
-    """Get user's conversation history"""
-    try:
-        conversations = db.query(Conversation).filter(
-            Conversation.user_id == 1  # TODO: Get from JWT token
-        ).order_by(Conversation.created_at.desc()).all()
-
-        return [
-            {
-                "id": conv.id,
-                "title": conv.title,
-                "created_at": conv.created_at.isoformat(),
-                "message_count": len(conv.messages) if hasattr(conv, 'messages') else 0
-            }
-            for conv in conversations
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get conversations: {str(e)}")
-
-@router.get("/conversations/{conversation_id}/messages")
-async def get_conversation_messages(conversation_id: int, db: Session = Depends(get_db)):
-    """Get messages from a specific conversation"""
-    try:
-        conversation = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == 1  # TODO: Get from JWT token
-        ).first()
-
-        if not conversation:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-
-        messages = db.query(Message).filter(
-            Message.conversation_id == conversation_id
-        ).order_by(Message.timestamp.asc()).all()
-
-        return {
-            "conversation_id": conversation_id,
-            "messages": [
-                {
-                    "id": msg.id,
-                    "role": msg.role,
-                    "content": msg.content,
-                    "timestamp": msg.timestamp.isoformat()
-                }
-                for msg in messages
-            ]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get messages: {str(e)}")
+@router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageResponse])
+async def get_messages(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all messages in a chat session"""
+    # Verify session belongs to user
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).all()
+    return messages
