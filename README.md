@@ -1,8 +1,4 @@
 # 🚀 RAG Chat Application
-[![FastAPI](https://shields.io)](https://tiangolo.com)
-[![Google Gemini](https://shields.io)](https://deepmind.google)
-[![ChromaDB](https://shields.io)](https://trychroma.com)
-[![SQLite](https://shields.io)](https://sqlite.org)
 
 A high-performance, full-stack **Retrieval-Augmented Generation (RAG)** chat application engineered specifically for the **RAGworks.ai** engineering challenge. It features asynchronous document processing, semantic search embedding vectors, and contextual chat completions driven by Google Gemini Pro.
 
@@ -55,7 +51,7 @@ app/
 | Technology | Implementation Role | Engineering Rationale |
 | :--- | :--- | :--- |
 | **FastAPI** | Core Web Framework | Best-in-class async speeds, structural scalability, auto OpenAPI schemas. |
-| **Google Gemini** | Language Model Core | Superior price-to-performance ratio, high context limits, rapid inference windows. |
+| **Groq** | Language Model Core | Superior price-to-performance ratio, high context limits, rapid inference windows. |
 | **ChromaDB** | Semantic Vector DB | Lightweight, lightning-fast in-memory/local indexing, simple embed management. |
 | **SQLAlchemy + SQLite** | Relational Ledger | Lightweight footprint requiring zero engine configurations—perfect for swift validation. |
 | **JWT + Bcrypt** | Authentication Layer | Secure, industry-standard cryptographic password hashing and stateless sessions. |
