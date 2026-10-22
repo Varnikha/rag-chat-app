@@ -1,0 +1,1 @@
+Claude Code is an AI coding assistant that helps developers write, review, and refactor code. It supports Python, JavaScript, and backend APIs.
